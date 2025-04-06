@@ -1,4 +1,4 @@
-version: '3.4'
+version: "3.4"
 services:
   postgres-db:
     image: postgres:16.2-alpine
@@ -8,10 +8,10 @@ services:
       - POSTGRES_PASSWORD=wO2VGDsMKR
       - max_wal_size=2GB
     ports:
-      - '5432:5432'
+      - "5432:5432"
     networks:
       - network
-    volumes: 
+    volumes:
       - postgres-db-16-2:/var/lib/postgresql/data-16-2
   ############################
   # Workflow App + Dapr sidecar
@@ -33,15 +33,25 @@ services:
     networks:
       - network
   workflow-dapr-a:
-    image: "daprio/daprd:1.14.4"
-    command: ["./daprd",
-     "-app-id", "workflow-a",
-     "-app-port", "5111",
-     "-placement-host-address", "placement:50005",
-     "-scheduler-host-address", "scheduler-0:50006,scheduler-1:50006,scheduler-2:50006",
-     "-resources-path", "/components",
-     "-config", "/dapr-config/config.yml",
-     "-log-level","info"]
+    image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
+    command:
+      [
+        "./daprd",
+        "-app-id",
+        "workflow-a",
+        "-app-port",
+        "5111",
+        "-placement-host-address",
+        "placement:50005",
+        "-scheduler-host-address",
+        "scheduler-0:50006",
+        "-resources-path",
+        "/components",
+        "-config",
+        "/dapr-config/config.yml",
+        "-log-level",
+        "info",
+      ]
     volumes:
       - "./components/:/components"
       - "./dapr-config/:/dapr-config"
@@ -51,6 +61,7 @@ services:
       kafka:
         condition: service_healthy
     network_mode: "service:workflow-app-a"
+
   ###########################
   #Client App + Dapr sidecar
   ###########################
@@ -64,13 +75,21 @@ services:
     networks:
       - network
   client-dapr:
-    image: "daprio/daprd:1.14.4"
-    command: ["./daprd",
-    "-app-id", "client",
-    "-app-port", "5111",
-    "-dapr-http-port", "3500",
-    "-resources-path", "/components",
-    "-log-level","warn"]
+    image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
+    command:
+      [
+        "./daprd",
+        "-app-id",
+        "client",
+        "-app-port",
+        "5111",
+        "-dapr-http-port",
+        "3500",
+        "-resources-path",
+        "/components",
+        "-log-level",
+        "warn",
+      ]
     volumes:
       - "./components/:/components"
     depends_on:
@@ -81,10 +100,8 @@ services:
   # Dapr placement service
   ############################
   placement:
-    image: "daprio/dapr:1.14.4"
-    command: ["./placement", 
-    "-port", "50005",
-    "-log-level","warn"]
+    image: "daprio/dapr:${DAPR_PLACEMENT_VERSION}"
+    command: ["./placement", "-port", "50005", "-log-level", "warn"]
     networks:
       - network
 
@@ -92,49 +109,15 @@ services:
   # # Dapr Scheduler service
   # ############################
   scheduler-0:
-    image: "daprio/dapr:1.14.4"
-    command: ["./scheduler", 
-    "--etcd-data-dir", "/var/run/dapr/scheduler",
-    "--replica-count", "3",
-    "--id","scheduler-0",
-    "--initial-cluster", "scheduler-0=http://scheduler-0:2380,scheduler-1=http://scheduler-1:2380,scheduler-2=http://scheduler-2:2380",
-    "--etcd-client-ports", "scheduler-0=2379,scheduler-1=2379,scheduler-2=2379",
-    "--etcd-client-http-ports", "scheduler-0=2330,scheduler-1=2330,scheduler-2=2330"
-    ]
-    volumes: 
+    image: "daprio/dapr:${DAPR_SCHEDULER_VERSION}"
+    command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
+    volumes:
       - ./dapr_scheduler/0:/var/run/dapr/scheduler
     networks:
       - network
-  scheduler-1:
-    image: "daprio/dapr:1.14.4"
-    command: ["./scheduler", 
-    "--etcd-data-dir", "/var/run/dapr/scheduler",
-    "--replica-count", "3",
-    "--id","scheduler-1",
-    "--initial-cluster", "scheduler-1=http://scheduler-1:2380,scheduler-0=http://scheduler-0:2380,scheduler-2=http://scheduler-2:2380",
-    "--etcd-client-ports", "scheduler-0=2379,scheduler-1=2379,scheduler-2=2379",
-    "--etcd-client-http-ports", "scheduler-0=2330,scheduler-1=2330,scheduler-2=2330"
-    ]
-    volumes: 
-      - ./dapr_scheduler/1:/var/run/dapr/scheduler
-    networks:
-      - network
-  scheduler-2:
-    image: "daprio/dapr:1.14.4"
-    command: ["./scheduler", 
-    "--etcd-data-dir", "/var/run/dapr/scheduler",
-    "--replica-count", "3",
-    "--id","scheduler-2",
-    "--initial-cluster", "scheduler-2=http://scheduler-2:2380,scheduler-0=http://scheduler-0:2380,scheduler-1=http://scheduler-1:2380",
-    "--etcd-client-ports", "scheduler-0=2379,scheduler-1=2379,scheduler-2=2379",
-    "--etcd-client-http-ports", "scheduler-0=2330,scheduler-1=2330,scheduler-2=2330"
-    ]
-    volumes: 
-      - ./dapr_scheduler/2:/var/run/dapr/scheduler
-    networks:
-      - network
+
   ############################
-  # Zookeeper 
+  # Zookeeper
   ############################
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -151,7 +134,7 @@ services:
       - zookeeper_logs:/var/lib/zookeeper/log
       - zookeeper_data:/var/lib/zookeeper/data
   ############################
-  # Kafka 
+  # Kafka
   ############################
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -193,10 +176,10 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_METRICS_PORT: 9997
-      KAFKA_CLUSTERS_0_AUDIT_TOPICAUDITENABLED: 'true'
-      KAFKA_CLUSTERS_0_AUDIT_CONSOLEAUDITENABLED: 'true'
-      LOGGING_LEVEL_ROOT: 'error'
-      LOGGING_LEVEL_COM_PROVECTUS: 'error'
+      KAFKA_CLUSTERS_0_AUDIT_TOPICAUDITENABLED: "true"
+      KAFKA_CLUSTERS_0_AUDIT_CONSOLEAUDITENABLED: "true"
+      LOGGING_LEVEL_ROOT: "error"
+      LOGGING_LEVEL_COM_PROVECTUS: "error"
     networks:
       - network
 networks:

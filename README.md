@@ -4,14 +4,16 @@
 > This repo is **purely** for load testing Dapr Workflows runtime.
 > It is **not** an example of what _good_ looks like! Most of the code is junk, to meet the end goal of testing the Workflows Runtime.
 
-In the past, this has flushed out many concurrency issues in the underlying durabletask-go library, which have been subsequently addressed in newer versions of the Dapr runtime. `main` currently targets `1.14.x` of the runtime which is the first version to address the horizontal scaling constraints by inclusion of the new Actor Reminder sub-system.
+In the past, this has flushed out many concurrency issues in the underlying durabletask-go library, which have been subsequently addressed in newer versions of the Dapr runtime.
+
+The dapr runtime version for all compose files is specified in the `.env` file.
 
 ---
 
 ### Run with 5 instances of the Workflow App, and 3 instances of the scheduler service
 
-1. `docker compose -f compose-5-instances-3-schedulers.yml build`
-2. `docker compose -f compose-5-instances-3-schedulers.yml up`
+1. `docker compose -f compose-5-3.yml build`
+2. `docker compose -f compose-5-3.yml up`
 
 
 ### Run a simple monitor pattern workflow
