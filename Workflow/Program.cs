@@ -103,7 +103,7 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
             instanceId: workflowId,
             input: orderInfo);
     }
-    catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unknown && ex.Status.Detail.StartsWith("an active workflow with ID"))
+    catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
     {
         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
         return new StartWorkflowResponse()
@@ -161,7 +161,7 @@ app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-e
             await workflowClient.RaiseEventAsync(workflowId, "event-name", $"{index}-{Guid.NewGuid()}");
         });
     }
-    catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unknown && ex.Status.Detail.StartsWith("an active workflow with ID"))
+    catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
     {
         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
         return new StartWorkflowResponse()
@@ -276,7 +276,7 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
             instanceId: workflowId,
             input: orderInfo);
     }
-    catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unknown && ex.Status.Detail.StartsWith("an active workflow with ID"))
+    catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
     {
         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
         return new StartWorkflowResponse()
