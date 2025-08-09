@@ -44,7 +44,7 @@ services:
         "-placement-host-address",
         "placement:50005",
         "-scheduler-host-address",
-        "scheduler-0:50006",
+        "scheduler-0:50006,scheduler-1:50006,scheduler-2:50006",
         "-resources-path",
         "/components",
         "-config",
@@ -113,6 +113,20 @@ services:
     command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
     volumes:
       - ./dapr_scheduler/0:/var/run/dapr/scheduler
+    networks:
+      - network
+  scheduler-1:
+    image: "daprio/dapr:${DAPR_SCHEDULER_VERSION}"
+    command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
+    volumes:
+      - ./dapr_scheduler/1:/var/run/dapr/scheduler
+    networks:
+      - network
+  scheduler-2:
+    image: "daprio/dapr:${DAPR_SCHEDULER_VERSION}"
+    command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
+    volumes:
+      - ./dapr_scheduler/2:/var/run/dapr/scheduler
     networks:
       - network
 

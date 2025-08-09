@@ -64,12 +64,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
 {
-    while (!await daprClient.CheckHealthAsync())
-    {
-        Thread.Sleep(TimeSpan.FromSeconds(5));
-        app.Logger.LogInformation("waiting...");
-    }
-
     if (ce.Data.Sleep == 666)
     {
         throw new Exception("666");
@@ -78,7 +72,7 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
     if (ce.Data.Sleep > 0)
     {
         app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
-        await Task.Delay(TimeSpan.FromSeconds(ce.Data.Sleep));
+        await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
         app.Logger.LogInformation("Awake!");
     }
 
@@ -120,12 +114,6 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
 
 app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-event-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
 {
-    while (!await daprClient.CheckHealthAsync())
-    {
-        Thread.Sleep(TimeSpan.FromSeconds(5));
-        app.Logger.LogInformation("waiting...");
-    }
-
     if (ce.Data.Sleep == 666)
     {
         throw new Exception("666");
@@ -134,7 +122,7 @@ app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-e
     if (ce.Data.Sleep > 0)
     {
         app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
-        await Task.Delay(TimeSpan.FromSeconds(ce.Data.Sleep));
+        await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
         app.Logger.LogInformation("Awake!");
     }
 
@@ -179,12 +167,6 @@ app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-e
 
 app.MapGet("/status-batch", async (DaprClient daprClient, DaprWorkflowClient workflowClient, string runId, int? count, bool? show_running) =>
 {
-    while (!await daprClient.CheckHealthAsync())
-    {
-        Thread.Sleep(TimeSpan.FromSeconds(5));
-        app.Logger.LogInformation("waiting...");
-    }
-
     var failed = 0;
     var complete = 0;
     var running = 0;
@@ -238,12 +220,6 @@ app.MapGet("/status-batch", async (DaprClient daprClient, DaprWorkflowClient wor
 
 app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
 {
-    while (!await daprClient.CheckHealthAsync())
-    {
-        Thread.Sleep(TimeSpan.FromSeconds(5));
-        app.Logger.LogInformation("waiting...");
-    }
-
     if (ce.Data.Sleep == 666)
     {
         throw new Exception("666");
@@ -252,7 +228,7 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
     if (ce.Data.Sleep > 0)
     {
         app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
-        await Task.Delay(TimeSpan.FromSeconds(ce.Data.Sleep));
+        await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
         app.Logger.LogInformation("Awake!");
     }
 

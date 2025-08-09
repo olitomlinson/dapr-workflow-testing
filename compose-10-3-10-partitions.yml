@@ -604,7 +604,7 @@ services:
       KAFKA_LOG4J_ROOT_LOGLEVEL: ERROR
       KAFKA_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.apache.kafka=ERROR,kafka=ERROR,kafka.cluster=ERROR,kafka.controller=ERROR,kafka.coordinator=ERROR,kafka.log=ERROR,kafka.server=ERROR,kafka.zookeeper=ERROR,state.change.logger=ERROR
       KAFKA_JMX_PORT: 9997
-      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_NUM_PARTITIONS: 10
   ############################
   # Kafka UI
   ############################
