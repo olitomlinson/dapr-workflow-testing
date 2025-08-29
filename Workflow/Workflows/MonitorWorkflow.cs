@@ -9,9 +9,9 @@ namespace WorkflowConsoleApp.Workflows
         {
             string workflowId = context.InstanceId;
 
-            var result = await context.CallActivityAsync<bool>(
+            var result = await context.CallActivityAsync<string>(
                 nameof(SlowActivity),
-                new Notification($"{workflowId} - {nameof(SlowActivity)} #{payload.Itterations} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}", payload.Data ));
+                new Notification($"{workflowId} - {nameof(SlowActivity)} #{payload.Itterations} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}", payload.Data));
 
             await context.CreateTimer(TimeSpan.FromSeconds(3));
 
@@ -22,7 +22,7 @@ namespace WorkflowConsoleApp.Workflows
             );
 
             if (newWorkflowPayload.Itterations == 0)
-                 return true;
+                return true;
 
             context.ContinueAsNew(newWorkflowPayload);
             return false;

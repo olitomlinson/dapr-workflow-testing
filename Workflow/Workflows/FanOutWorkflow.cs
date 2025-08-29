@@ -1,32 +1,23 @@
+using System.Reactive;
 using Dapr.Workflow;
 using WorkflowConsoleApp.Activities;
 
 namespace WorkflowConsoleApp.Workflows
 {
-    public class FanOutWorkflow : Workflow<WorkflowPayload, bool>
+    public class FanOutWorkflow : Workflow<WorkflowPayload, IEnumerable<string>>
     {
-        public override async Task<bool> RunAsync(WorkflowContext context, WorkflowPayload payload)
+        public override async Task<IEnumerable<string>> RunAsync(WorkflowContext context, WorkflowPayload payload)
         {
-            string workflowId = context.InstanceId;
-
-            var fanOut = new List<Task>();
+            var fanOut = new List<Task<string>>();
 
             for (int i = 0; i < payload.Itterations; i++)
             {
-                fanOut.Add(context.CallActivityAsync<bool>(nameof(SlowActivity), new Notification($"{workflowId} - {nameof(SlowActivity)} #{i}(1) - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}")));
+                fanOut.Add(context.CallActivityAsync<string>(nameof(SuperSlowActivity), new Activities.Notification($"{context.InstanceId} - {nameof(SuperSlowActivity)} (1) #{i} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}")));
             }
-
 
             await Task.WhenAll(fanOut);
 
-            await context.CreateTimer(TimeSpan.FromSeconds(60));
-
-            for (int i = 0; i < payload.Itterations; i++)
-            {
-                fanOut.Add(context.CallActivityAsync<bool>(nameof(SlowActivity), new Notification($"{workflowId} - {nameof(SlowActivity)} #{i}(2) - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}")));
-            }
-
-            return true;
+            return fanOut.Select(x => x.Result);
         }
     }
 }

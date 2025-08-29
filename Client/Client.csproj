@@ -5,8 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dapr.Client" Version="1.16.0-rc03" />
+    <PackageReference Include="Dapr.Client" Version="1.16.0-rc15" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
-    <PackageReference Include="Dapr.AspNetCore" Version="1.16.0-rc03" />
+    <PackageReference Include="Dapr.AspNetCore" Version="1.16.0-rc15" />
   </ItemGroup>
 </Project>

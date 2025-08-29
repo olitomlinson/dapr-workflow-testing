@@ -3,6 +3,9 @@ kind: Configuration
 metadata:
   name: daprConfig
 spec:
+  # workflow:
+  #   maxConcurrentWorkflowInvocations: 10
+  #   maxConcurrentActivityInvocations: 2000
   # tracing:
   #   samplingRate: "1"
   #   zipkin:

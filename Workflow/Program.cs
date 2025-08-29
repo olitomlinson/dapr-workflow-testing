@@ -31,6 +31,7 @@ builder.Services.AddDaprWorkflow(options =>
             options.RegisterActivity<FastActivity>();
             options.RegisterActivity<SlowActivity>();
             options.RegisterActivity<VerySlowActivity>();
+            options.RegisterActivity<SuperSlowActivity>();
             options.RegisterActivity<AlwaysFailActivity>();
             options.RegisterActivity<NotifyCompensateActivity>();
             options.RegisterActivity<NoOpActivity>();
@@ -242,7 +243,7 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
 
     string randomData = Guid.NewGuid().ToString();
     string workflowId = ce.Data?.Id ?? $"{Guid.NewGuid().ToString()[..8]}";
-    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 10);
+    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 200);
 
     string result = string.Empty;
     try
@@ -252,7 +253,9 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
             instanceId: workflowId,
             input: orderInfo);
     }
-    catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
+    catch (Grpc.Core.RpcException ex)
+        when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown)
+            && ex.Status.Detail.Contains("an active workflow with ID"))
     {
         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
         return new StartWorkflowResponse()
