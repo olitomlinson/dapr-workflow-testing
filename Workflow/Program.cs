@@ -7,11 +7,17 @@ using workflow;
 using System.Text.Json;
 using WorkflowConsoleApp;
 using System.Text;
+using Dapr.Messaging.PublishSubscribe;
+using Dapr.Messaging.PublishSubscribe.Extensions;
+using Dapr.Client.Autogen.Grpc.v1;
+using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
 bool registerWorkflows = Convert.ToBoolean(Environment.GetEnvironmentVariable("REGISTER_WORKFLOWS"));
 bool registerActivities = Convert.ToBoolean(Environment.GetEnvironmentVariable("REGISTER_ACTIVITIES"));
+
+builder.Services.AddDaprPubSubClient();
 
 builder.Services.AddHttpClient();
 builder.Services.AddDaprClient();
@@ -41,6 +47,8 @@ builder.Services.AddDaprWorkflow(options =>
         }
     });
 
+
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -62,12 +70,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
-app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
+//Process each message returned from the subscription
+async Task<TopicResponseAction> HandleMessageAsync(TopicMessage message, CancellationToken cancellationToken = default)
 {
+    DaprWorkflowClient daprWorkflowClient = app.Services.GetRequiredService<DaprWorkflowClient>();
+    var ce = JsonSerializer.Deserialize<CustomCloudEvent<StartWorkflowRequest>>(Encoding.UTF8.GetString(message.Data.Span));
+
     if (ce.Data.Sleep == 666)
     {
-        throw new Exception("666");
+        return TopicResponseAction.Retry;
     }
 
     if (ce.Data.Sleep > 0)
@@ -79,10 +90,7 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
 
     if (!string.IsNullOrEmpty(ce.Data.AbortHint))
     {
-        return new StartWorkflowResponse()
-        {
-            status = ce.Data.AbortHint
-        };
+        return TopicResponseAction.Drop;
     }
 
     string randomData = Guid.NewGuid().ToString();
@@ -93,7 +101,7 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
 
     try
     {
-        result = await workflowClient.ScheduleNewWorkflowAsync(
+        result = await daprWorkflowClient.ScheduleNewWorkflowAsync(
             name: nameof(MonitorWorkflow),
             instanceId: workflowId,
             input: orderInfo);
@@ -101,19 +109,74 @@ app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] asy
     catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
     {
         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
-        return new StartWorkflowResponse()
-        {
-            Id = workflowId + " error"
-        };
+        return TopicResponseAction.Success;
     }
 
-    return new StartWorkflowResponse()
-    {
-        Id = result
-    };
-}).Produces<StartWorkflowResponse>();
+    return TopicResponseAction.Success;
+}
 
-app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-event-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
+app.Logger.LogInformation("Starting to subsribe...");
+var messagingClient = app.Services.GetRequiredService<DaprPublishSubscribeClient>();
+await Task.Delay(TimeSpan.FromSeconds(10));
+//Create a dynamic streaming subscription and subscribe with a timeout of 30 seconds and 10 seconds for message handling
+var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+var subscription = await messagingClient.SubscribeAsync("kafka-pubsub", "monitor-workflow",
+    new DaprSubscriptionOptions(new MessageHandlingPolicy(TimeSpan.FromSeconds(10), TopicResponseAction.Retry)),
+    HandleMessageAsync, cancellationTokenSource.Token);
+app.Logger.LogInformation("Subsribed!");
+
+
+// app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorkflowRequest>? ce) =>
+// {
+//     if (ce.Data.Sleep == 666)
+//     {
+//         throw new Exception("666");
+//     }
+
+//     if (ce.Data.Sleep > 0)
+//     {
+//         app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
+//         await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
+//         app.Logger.LogInformation("Awake!");
+//     }
+
+//     if (!string.IsNullOrEmpty(ce.Data.AbortHint))
+//     {
+//         return new StartWorkflowResponse()
+//         {
+//             status = ce.Data.AbortHint
+//         };
+//     }
+
+//     string randomData = Guid.NewGuid().ToString();
+//     string workflowId = ce.Data?.Id ?? $"{Guid.NewGuid().ToString()[..8]}";
+//     var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 10, Enumerable.Range(0, 1).Select(_ => Guid.NewGuid()).ToArray());
+
+//     string result = string.Empty;
+
+//     try
+//     {
+//         result = await workflowClient.ScheduleNewWorkflowAsync(
+//             name: nameof(MonitorWorkflow),
+//             instanceId: workflowId,
+//             input: orderInfo);
+//     }
+//     catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
+//     {
+//         app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
+//         return new StartWorkflowResponse()
+//         {
+//             Id = workflowId + " error"
+//         };
+//     }
+
+//     return new StartWorkflowResponse()
+//     {
+//         Id = result
+//     };
+// }).Produces<StartWorkflowResponse>();
+
+app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-event-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorkflowRequest>? ce) =>
 {
     if (ce.Data.Sleep == 666)
     {
@@ -219,7 +282,7 @@ app.MapGet("/status-batch", async (DaprClient daprClient, DaprWorkflowClient wor
 }).Produces<string>();
 
 
-app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
+app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorkflowRequest>? ce) =>
 {
     if (ce.Data.Sleep == 666)
     {
@@ -282,7 +345,7 @@ public class HelloWorld
     public DateTime scheduled { get; set; }
 }
 
-public class StartWorklowRequest
+public class StartWorkflowRequest
 {
     public string Id { get; set; }
     public bool FailOnTimeout { get; set; }
