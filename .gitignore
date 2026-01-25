@@ -306,6 +306,24 @@ paket-files/
 __pycache__/
 *.pyc
 
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+.virtualenv/
+
+# Python package build artifacts
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Python pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config

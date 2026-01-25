@@ -18,29 +18,38 @@ services:
   ############################
   workflow-app-a:
     environment:
-      - DAPR_HTTP_PORT=3500
+      - DAPR_GRPC_ENDPOINT=http://workflow-dapr-a:50001
+      - DAPR_HTTP_ENDPOINT=http://workflow-dapr-a:3500
       - REGISTER_WORKFLOWS=true
       - REGISTER_ACTIVITIES=true
     build:
       context: .
       dockerfile: Workflow/Dockerfile
     ports:
-      - "3500:3500" # only important so we can reach the Dapr HTTP sidecar from the host for testing purposes
-      - "5113:5111"
-      - "7777:7776"
+      - "5111:5111"
+      - "7776:7776"
     depends_on:
-      - placement
+      workflow-dapr-a:
+        condition: service_started
     networks:
       - network
   workflow-dapr-a:
     image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
+    ports:
+      - "3500:3500" # only important so we can reach the Dapr HTTP sidecar from the host for testing purposes
     command:
       [
         "./daprd",
         "-app-id",
         "workflow-a",
+        "-app-channel-address",
+        "workflow-app-a",
         "-app-port",
         "5111",
+        "-dapr-http-port",
+        "3500",
+        "-dapr-grpc-port",
+        "50001",
         "-placement-host-address",
         "placement:50005",
         "-scheduler-host-address",
@@ -60,7 +69,69 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
-    network_mode: "service:workflow-app-a"
+    networks:
+      - network
+
+  ############################
+  # Python Workflow App + Dapr sidecar
+  ############################
+  python-workflow-app:
+    environment:
+      - DAPR_GRPC_ENDPOINT=http://python-workflow-dapr:50001
+      - DAPR_HTTP_ENDPOINT=http://python-workflow-dapr:3500
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - network
+  python-workflow-dapr:
+    image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
+    ports:
+      - "3501:3500" # Dapr HTTP port (different from workflow-a)
+      - "50002:50001" # Dapr gRPC port (different from workflow-a)
+    command:
+      [
+        "./daprd",
+        "-app-id",
+        "python-workflow-app",
+        "-app-channel-address",
+        "python-workflow-app",
+        "-app-port",
+        "8000",
+        "-dapr-http-port",
+        "3500",
+        "-dapr-grpc-port",
+        "50001",
+        "-placement-host-address",
+        "placement:50005",
+        "-scheduler-host-address",
+        "scheduler-0:50006",
+        "-resources-path",
+        "/components",
+        "-config",
+        "/dapr-config/config.yml",
+        "-log-level",
+        "info",
+      ]
+    volumes:
+      - "./components/:/components"
+      - "./dapr-config/:/dapr-config"
+    depends_on:
+      postgres-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:3500/v1.0/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - network
 
   ###########################
   #Client App + Dapr sidecar
@@ -104,17 +175,43 @@ services:
     command: ["./placement", "-port", "50005", "-log-level", "warn"]
     networks:
       - network
+    ports:
+      - "50005:50005"
 
   # ############################
   # # Dapr Scheduler service
   # ############################
   scheduler-0:
     image: "daprio/dapr:${DAPR_SCHEDULER_VERSION}"
-    command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
+    command:
+      [
+        "./scheduler",
+        "--id",
+        "scheduler-0",
+        "--listen-address",
+        "0.0.0.0",
+        "--etcd-data-dir",
+        "/var/run/dapr/scheduler",
+        "--etcd-initial-cluster",
+        "scheduler-0=http://scheduler-0:2380",
+        "--port",
+        "50006",
+        "--override-broadcast-host-port",
+        "scheduler-0:50006",
+      ]
     volumes:
       - ./dapr_scheduler/0:/var/run/dapr/scheduler
     networks:
       - network
+    ports:
+      - "50006:50006"
+      - "2380:2380"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:50006/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   ############################
   # Zookeeper
@@ -174,6 +271,8 @@ services:
     image: provectuslabs/kafka-ui:latest
     ports:
       - 8080:8080
+    networks:
+      - network
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -182,10 +281,23 @@ services:
       KAFKA_CLUSTERS_0_AUDIT_CONSOLEAUDITENABLED: "true"
       LOGGING_LEVEL_ROOT: "error"
       LOGGING_LEVEL_COM_PROVECTUS: "error"
+
+  workflow-dashboard:
+    image: ghcr.io/diagridio/diagrid-dashboard:latest
+    restart: always
+    environment:
+      - COMPONENT_FILE=/app/components/custom_state.yaml
+    ports:
+      - 8081:8080
     networks:
       - network
+    volumes:
+      - "./components/statestore-pg-v2.yaml:/app/components/custom_state.yaml"
+
 networks:
   network:
+    driver: bridge
+
 volumes:
   db-data:
     driver: local

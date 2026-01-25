@@ -3,6 +3,7 @@ using Dapr;
 using Dapr.Client;
 using WorkflowConsoleApp.Activities;
 using WorkflowConsoleApp.Workflows;
+using WorkflowConsoleApp.Models;
 using workflow;
 using System.Text.Json;
 using WorkflowConsoleApp;
@@ -24,6 +25,7 @@ builder.Services.AddDaprWorkflow(options =>
             options.RegisterWorkflow<ExternalSystemWorkflow>();
             options.RegisterWorkflow<ThrottleWorkflow>();
             options.RegisterWorkflow<ConstrainedWorkflow>();
+            options.RegisterWorkflow<SemanticSearchWorkflow>();
         }
 
         if (registerActivities)
@@ -271,11 +273,87 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
 }).Produces<StartWorkflowResponse>();
 
 
+app.MapPost("/semantic-search", async (DaprWorkflowClient workflowClient, SemanticSearchRequest request) =>
+{
+    try
+    {
+        string workflowId = $"semantic-search-{Guid.NewGuid().ToString()[..8]}";
+
+        app.Logger.LogInformation("Starting semantic search workflow with query: '{Query}'", request.Query);
+
+        var input = new SemanticSearchInput(
+            Query: request.Query,
+            Documents: request.Documents
+        );
+
+        // Start the workflow
+        var instanceId = await workflowClient.ScheduleNewWorkflowAsync(
+            name: nameof(SemanticSearchWorkflow),
+            instanceId: workflowId,
+            input: input
+        );
+
+        // Wait for the workflow to complete
+        var workflowState = await workflowClient.WaitForWorkflowCompletionAsync(
+            instanceId: instanceId,
+            getInputsAndOutputs: true
+        );
+
+        var result = workflowState.ReadOutputAs<SemanticSearchOutput>()
+            ?? throw new Exception("Workflow completed but returned no output");
+
+        app.Logger.LogInformation(
+            "Semantic search completed. Device: {Device}, Time: {Time}ms",
+            result.Device,
+            result.TotalProcessingTimeMs
+        );
+
+        return Results.Ok(new
+        {
+            workflowId = instanceId,
+            query = result.Query,
+            results = result.Results.Select(r => new
+            {
+                document = r.Document,
+                similarity = r.Similarity,
+                interpretation = r.Interpretation
+            }),
+            metadata = new
+            {
+                device = result.Device,
+                processingTimeMs = result.TotalProcessingTimeMs,
+                embeddingDimension = result.EmbeddingDimension,
+                numDocuments = result.Results.Count
+            }
+        });
+    }
+    catch (TimeoutException)
+    {
+        app.Logger.LogError("Semantic search workflow timed out");
+        return Results.StatusCode(504);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Error executing semantic search workflow");
+        return Results.Problem(
+            detail: ex.Message,
+            statusCode: 500,
+            title: "Semantic search failed"
+        );
+    }
+}).Produces<object>()
+  .ProducesValidationProblem()
+  .WithName("SemanticSearch")
+  .WithTags("GPU-Accelerated Workflows");
+
+
 app.Run();
 
 public record WorkflowPayload(string RandomData, int Itterations = 1, Guid[]? Data = default);
 
 public record ExternalSystemWorkflowPayload(bool failOnTimeout = false);
+
+public record SemanticSearchRequest(string Query, List<string> Documents);
 
 public class HelloWorld
 {

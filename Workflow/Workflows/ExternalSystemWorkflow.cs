@@ -1,6 +1,5 @@
 using System.Text;
 using Dapr.Workflow;
-using Newtonsoft.Json;
 using WorkflowConsoleApp.Activities;
 
 namespace WorkflowConsoleApp.Workflows

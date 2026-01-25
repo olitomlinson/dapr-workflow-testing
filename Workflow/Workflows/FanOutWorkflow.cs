@@ -1,4 +1,3 @@
-using System.Reactive;
 using Dapr.Workflow;
 using WorkflowConsoleApp.Activities;
 
