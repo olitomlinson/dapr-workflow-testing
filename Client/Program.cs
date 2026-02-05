@@ -113,13 +113,22 @@ app.MapPost("/start-raise-event-workflow", async (DaprClient daprClient, string 
 }).Produces<List<StartWorkflowResponse>>();
 
 
-app.MapPost("/start/fanout-workflow", async (DaprClient daprClient, string runId, int? count, bool? async, int? sleep, string? abortHint) =>
+app.MapPost("/start/fanout-workflow", async (DaprClient daprClient, string runId, int? count, bool? async, int? sleep, string? abortHint, string? target) =>
 {
     if (!count.HasValue || count.Value < 1)
         count = 1;
 
     if (!sleep.HasValue)
         sleep = 0;
+
+    // Determine the topic based on target parameter (defaults to dotnet)
+    string topic = "fanout-workflow";
+    if (!string.IsNullOrEmpty(target) && target.Equals("python", StringComparison.OrdinalIgnoreCase))
+    {
+        topic = "fanout-workflow-python";
+    }
+
+    app.Logger.LogInformation("Targeting topic: {Topic}", topic);
 
     var results = new List<StartWorkflowResponse>();
 
@@ -137,14 +146,14 @@ app.MapPost("/start/fanout-workflow", async (DaprClient daprClient, string runId
         };
 
         if (async.HasValue && async.Value == true)
-            await daprClient.PublishEventAsync<StartWorkflowRequest>("kafka-pubsub", "fanout-workflow", request, cts.Token);
+            await daprClient.PublishEventAsync<StartWorkflowRequest>("kafka-pubsub", topic, request, cts.Token);
         else
         {
             var wrappedRequest = new CustomCloudEvent<StartWorkflowRequest>(request)
             {
                 Id = request.Id,
             };
-            await daprClient.InvokeMethodAsync<CustomCloudEvent<StartWorkflowRequest>, StartWorkflowResponse>("workflow-a", "fanout-workflow", wrappedRequest, cts.Token);
+            await daprClient.InvokeMethodAsync<CustomCloudEvent<StartWorkflowRequest>, StartWorkflowResponse>("workflow-a", topic, wrappedRequest, cts.Token);
         }
         app.Logger.LogInformation("start Id: {0}", request.Id);
 

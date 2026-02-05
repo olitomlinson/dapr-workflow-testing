@@ -28,9 +28,6 @@ services:
     ports:
       - "5111:5111"
       - "7776:7776"
-    depends_on:
-      workflow-dapr-a:
-        condition: service_started
     networks:
       - network
   workflow-dapr-a:
