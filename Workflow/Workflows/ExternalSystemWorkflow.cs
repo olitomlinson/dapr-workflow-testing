@@ -1,21 +1,20 @@
 using System.Text;
 using Dapr.Workflow;
-using Newtonsoft.Json;
 using WorkflowConsoleApp.Activities;
 
 namespace WorkflowConsoleApp.Workflows
 {
-    public class ExternalSystemWorkflow : Workflow<ExternalSystemWorkflowPayload, Dictionary<string,int>>
+    public class ExternalSystemWorkflow : Workflow<ExternalSystemWorkflowPayload, Dictionary<string, int>>
     {
-        public override async Task<Dictionary<string,int>> RunAsync(WorkflowContext context, ExternalSystemWorkflowPayload payload)
-        {     
+        public override async Task<Dictionary<string, int>> RunAsync(WorkflowContext context, ExternalSystemWorkflowPayload payload)
+        {
             var cts = new CancellationTokenSource();
 
             Task timeout = context.CreateTimer(TimeSpan.FromSeconds(30), cts.Token);
 
             List<Task<string>> results = new List<Task<string>>();
 
-            for(int i = 0; i < 1000; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 results.Add(context.WaitForExternalEventAsync<string>("wait-event"));
             }
@@ -39,7 +38,7 @@ namespace WorkflowConsoleApp.Workflows
                         receivedEvents[result.Result] = count += 1;
                     }
                 }
-                
+
                 return receivedEvents;
             }
             else if (winner == timeout)
@@ -57,9 +56,9 @@ namespace WorkflowConsoleApp.Workflows
                 {
                     receivedEvents.Add("FAILED ON TIMEOUT", 0);
                     return receivedEvents;
-                }   
+                }
             }
-            
+
             return null;
         }
     }

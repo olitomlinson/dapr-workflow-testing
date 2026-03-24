@@ -408,6 +408,22 @@ services:
       LOGGING_LEVEL_COM_PROVECTUS: "error"
     networks:
       - network
+
+  ############################
+  # Diagrid Workflow Dashboard
+  ############################
+  workflow-dashboard:
+    image: ghcr.io/diagridio/diagrid-dashboard:latest
+    restart: always
+    environment:
+      - COMPONENT_FILE=/app/components/statestore.yaml
+    ports:
+      - "8081:8080"
+    volumes:
+      - "./components/statestore.yaml:/app/components/statestore.yaml"
+    networks:
+      - network
+
 networks:
   network:
 volumes:
