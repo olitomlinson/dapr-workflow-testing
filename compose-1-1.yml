@@ -69,66 +69,66 @@ services:
     networks:
       - network
 
-  ############################
-  # Python Workflow App + Dapr sidecar
-  ############################
-  python-workflow-app:
-    environment:
-      - DAPR_GRPC_ENDPOINT=http://python-workflow-dapr:50001
-      - DAPR_HTTP_ENDPOINT=http://python-workflow-dapr:3500
-    build:
-      context: ./python
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    networks:
-      - network
-  python-workflow-dapr:
-    image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
-    ports:
-      - "3501:3500" # Dapr HTTP port (different from workflow-a)
-      - "50002:50001" # Dapr gRPC port (different from workflow-a)
-    command:
-      [
-        "./daprd",
-        "-app-id",
-        "python-workflow-app",
-        "-app-channel-address",
-        "python-workflow-app",
-        "-app-port",
-        "8000",
-        "-dapr-http-port",
-        "3500",
-        "-dapr-grpc-port",
-        "50001",
-        "-placement-host-address",
-        "placement:50005",
-        "-scheduler-host-address",
-        "scheduler-0:50006",
-        "-resources-path",
-        "/components",
-        "-config",
-        "/dapr-config/config.yml",
-        "-log-level",
-        "info",
-      ]
-    volumes:
-      - "./components/:/components"
-      - "./dapr-config/:/dapr-config"
-    depends_on:
-      postgres-db:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    healthcheck:
-      test:
-        ["CMD", "wget", "-q", "--spider", "http://localhost:3500/v1.0/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    networks:
-      - network
+  # ############################
+  # # Python Workflow App + Dapr sidecar
+  # ############################
+  # python-workflow-app:
+  #   environment:
+  #     - DAPR_GRPC_ENDPOINT=http://python-workflow-dapr:50001
+  #     - DAPR_HTTP_ENDPOINT=http://python-workflow-dapr:3500
+  #   build:
+  #     context: ./python
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - network
+  # python-workflow-dapr:
+  #   image: "daprio/daprd:${DAPR_RUNTIME_VERSION}"
+  #   ports:
+  #     - "3501:3500" # Dapr HTTP port (different from workflow-a)
+  #     - "50002:50001" # Dapr gRPC port (different from workflow-a)
+  #   command:
+  #     [
+  #       "./daprd",
+  #       "-app-id",
+  #       "python-workflow-app",
+  #       "-app-channel-address",
+  #       "python-workflow-app",
+  #       "-app-port",
+  #       "8000",
+  #       "-dapr-http-port",
+  #       "3500",
+  #       "-dapr-grpc-port",
+  #       "50001",
+  #       "-placement-host-address",
+  #       "placement:50005",
+  #       "-scheduler-host-address",
+  #       "scheduler-0:50006",
+  #       "-resources-path",
+  #       "/components",
+  #       "-config",
+  #       "/dapr-config/config.yml",
+  #       "-log-level",
+  #       "info",
+  #     ]
+  #   volumes:
+  #     - "./components/:/components"
+  #     - "./dapr-config/:/dapr-config"
+  #   depends_on:
+  #     postgres-db:
+  #       condition: service_started
+  #     kafka:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test:
+  #       ["CMD", "wget", "-q", "--spider", "http://localhost:3500/v1.0/healthz"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+  #     start_period: 10s
+  #   networks:
+  #     - network
 
   ###########################
   #Client App + Dapr sidecar

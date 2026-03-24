@@ -7,24 +7,10 @@ namespace WorkflowConsoleApp.Workflows
     {
         public override async Task<bool> RunAsync(WorkflowContext context, WorkflowPayload payload)
         {
-            string workflowId = context.InstanceId;
+            await Task.Delay(TimeSpan.FromDays(1));
+            //await context.CallActivityAsync<string>(nameof(SuperSlowActivity), new Activities.Notification($"{context.InstanceId} - {nameof(SuperSlowActivity)} (1) # - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}"));
+            //await context.CreateTimer(TimeSpan.FromHours(1));
 
-            var result = await context.CallActivityAsync<string>(
-                nameof(VerySlowActivity),
-                new Notification($"{workflowId} - {nameof(VerySlowActivity)} #{payload.Itterations} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}", payload.Data));
-
-            await context.CreateTimer(TimeSpan.FromSeconds(3));
-
-            var newWorkflowPayload = new WorkflowPayload(
-                payload.RandomData,
-                payload.Itterations - 1,
-                null
-            );
-
-            if (newWorkflowPayload.Itterations == 0)
-                return true;
-
-            context.ContinueAsNew(newWorkflowPayload);
             return false;
         }
     }
