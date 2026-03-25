@@ -420,7 +420,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - "./components/statestore.yaml:/app/components/statestore.yaml"
+      - "./components/statestore-pg-v2.yaml:/app/components/statestore.yaml"
     networks:
       - network
 

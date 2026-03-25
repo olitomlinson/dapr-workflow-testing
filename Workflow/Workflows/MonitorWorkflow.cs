@@ -11,7 +11,7 @@ namespace WorkflowConsoleApp.Workflows
 
             var result = await context.CallActivityAsync<string>(
                 nameof(VerySlowActivity),
-                new Notification($"{workflowId} - {nameof(VerySlowActivity)} #{payload.Itterations} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}", payload.Data));
+                new Notification($"{workflowId} - {nameof(VerySlowActivity)} #{payload.Itterations} - scheduled={context.CurrentUtcDateTime.ToString("HH:mm:ss")}", payload.Data));
 
             await context.CreateTimer(TimeSpan.FromSeconds(3));
 

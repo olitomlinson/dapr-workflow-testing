@@ -11,7 +11,7 @@ namespace WorkflowConsoleApp.Workflows
 
             for (int i = 0; i < payload.Itterations; i++)
             {
-                fanOut.Add(context.CallActivityAsync<string>(nameof(SuperSlowActivity), new Activities.Notification($"{context.InstanceId} - {nameof(SuperSlowActivity)} (1) #{i} - scheduled={DateTime.UtcNow.ToString("HH:mm:ss")}")));
+                fanOut.Add(context.CallActivityAsync<string>(nameof(SuperSlowActivity), new Activities.Notification($"{context.InstanceId} - {nameof(SuperSlowActivity)} (1) #{i} - scheduled={context.CurrentUtcDateTime.ToString("HH:mm:ss")}")));
             }
 
             await Task.WhenAll(fanOut);
