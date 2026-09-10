@@ -6,10 +6,10 @@ spec:
   type: state.postgresql
   version: v2
   metadata:
-  # Connection string
-  - name: connectionString
-    value: "host=postgres-db user=postgres password=wO2VGDsMKR port=5432 database=postgres"
-  - name: actorStateStore
-    value: "true"
-  - name: tablePrefix
-    value: v2_
+    # Connection string
+    - name: connectionString
+      value: "host=postgres-db user=postgres password=wO2VGDsMKR port=5432 database=postgres"
+    - name: actorStateStore
+      value: "true"
+    - name: tablePrefix
+      value: v2_

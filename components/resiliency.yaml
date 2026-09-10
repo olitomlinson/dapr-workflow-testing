@@ -1,0 +1,16 @@
+apiVersion: dapr.io/v1alpha1
+kind: Resiliency
+metadata:
+  name: default-pubsub-retry-policy
+spec:
+  policies:
+    retries:
+      pubsubRetry:
+        duration: 40s
+        maxRetries: 5
+        policy: constant
+  targets:
+    components:
+      kafka-pubsub:
+        inbound:
+          retry: pubsubRetry

@@ -24,6 +24,7 @@ builder.Services.AddDaprWorkflow(options =>
             options.RegisterWorkflow<ExternalSystemWorkflow>();
             options.RegisterWorkflow<ThrottleWorkflow>();
             options.RegisterWorkflow<ConstrainedWorkflow>();
+            options.RegisterActivity<RandomDurationActivity>();
         }
 
         if (registerActivities)
@@ -48,6 +49,10 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Health endpoint status code control
+int healthStatusCode = 200;
+int monitorStatusCode = 200;
+
 //app.UseCloudEvents();
 app.MapSubscribeHandler();
 
@@ -63,55 +68,14 @@ if (app.Environment.IsDevelopment())
 }
 
 
-app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
+app.MapPost("/monitor-workflow", [Topic("kafka-pubsub", "monitor-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce, HttpContext context) =>
 {
-    if (ce.Data.Sleep == 666)
-    {
-        throw new Exception("666");
-    }
+    app.Logger.LogInformation($"ACTIVATED {ce.Data.Id} : Response Status code: {monitorStatusCode}");
+    context.Response.StatusCode = monitorStatusCode;
+    return $"monitor response is : {monitorStatusCode}";
 
-    if (ce.Data.Sleep > 0)
-    {
-        app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
-        await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
-        app.Logger.LogInformation("Awake!");
-    }
+});
 
-    if (!string.IsNullOrEmpty(ce.Data.AbortHint))
-    {
-        return new StartWorkflowResponse()
-        {
-            status = ce.Data.AbortHint
-        };
-    }
-
-    string randomData = Guid.NewGuid().ToString();
-    string workflowId = ce.Data?.Id ?? $"{Guid.NewGuid().ToString()[..8]}";
-    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 10, Enumerable.Range(0, 1).Select(_ => Guid.NewGuid()).ToArray());
-
-    string result = string.Empty;
-
-    try
-    {
-        result = await workflowClient.ScheduleNewWorkflowAsync(
-            name: nameof(MonitorWorkflow),
-            instanceId: workflowId,
-            input: orderInfo);
-    }
-    catch (Grpc.Core.RpcException ex) when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown) && ex.Status.Detail.Contains("an active workflow with ID"))
-    {
-        app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
-        return new StartWorkflowResponse()
-        {
-            Id = workflowId + " error"
-        };
-    }
-
-    return new StartWorkflowResponse()
-    {
-        Id = result
-    };
-}).Produces<StartWorkflowResponse>();
 
 app.MapPost("/start-raise-event-workflow", [Topic("kafka-pubsub", "start-raise-event-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
 {
@@ -221,17 +185,18 @@ app.MapGet("/status-batch", async (DaprClient daprClient, DaprWorkflowClient wor
 
 app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
 {
-    if (ce.Data.Sleep == 666)
-    {
-        throw new Exception("666");
-    }
-
     if (ce.Data.Sleep > 0)
     {
         app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
         await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
         app.Logger.LogInformation("Awake!");
     }
+
+    if (ce.Data.Sleep == 120000)
+    {
+        throw new Exception("120000");
+    }
+
 
     if (!string.IsNullOrEmpty(ce.Data.AbortHint))
     {
@@ -243,7 +208,7 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
 
     string randomData = Guid.NewGuid().ToString();
     string workflowId = ce.Data?.Id ?? $"{Guid.NewGuid().ToString()[..8]}";
-    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 200);
+    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 20);
 
     string result = string.Empty;
     try
@@ -270,6 +235,80 @@ app.MapPost("/fanout-workflow", [Topic("kafka-pubsub", "fanout-workflow")] async
     };
 }).Produces<StartWorkflowResponse>();
 
+app.MapPost("/fanout-workflow-2", [Topic("kafka-pubsub", "fanout-workflow-2")] async (DaprClient daprClient, DaprWorkflowClient workflowClient, CustomCloudEvent<StartWorklowRequest>? ce) =>
+{
+    if (ce.Data.Sleep > 0)
+    {
+        app.Logger.LogInformation("sleeping for {0} ...", ce.Data.Sleep);
+        await Task.Delay(TimeSpan.FromMilliseconds(ce.Data.Sleep));
+        app.Logger.LogInformation("Awake!");
+    }
+
+    if (ce.Data.Sleep == 120000)
+    {
+        throw new Exception("120000");
+    }
+
+
+    if (!string.IsNullOrEmpty(ce.Data.AbortHint))
+    {
+        return new StartWorkflowResponse()
+        {
+            status = ce.Data.AbortHint
+        };
+    }
+
+    string randomData = Guid.NewGuid().ToString();
+    string workflowId = ce.Data?.Id ?? $"{Guid.NewGuid().ToString()[..8]}";
+    var orderInfo = new WorkflowPayload(randomData.ToLowerInvariant(), 20);
+
+    string result = string.Empty;
+    try
+    {
+        result = await workflowClient.ScheduleNewWorkflowAsync(
+            name: nameof(FanOutWorkflow),
+            instanceId: workflowId,
+            input: orderInfo);
+    }
+    catch (Grpc.Core.RpcException ex)
+        when ((ex.StatusCode == Grpc.Core.StatusCode.Internal || ex.StatusCode == Grpc.Core.StatusCode.Unknown)
+            && ex.Status.Detail.Contains("an active workflow with ID"))
+    {
+        app.Logger.LogError(ex, "Workflow already running : {workflowId}", workflowId);
+        return new StartWorkflowResponse()
+        {
+            Id = workflowId + " error"
+        };
+    }
+
+    return new StartWorkflowResponse()
+    {
+        Id = result
+    };
+}).Produces<StartWorkflowResponse>();
+
+
+app.MapGet("/health", async (HttpContext context) =>
+{
+    app.Logger.LogInformation("Health - Status code: {statusCode}", healthStatusCode);
+    context.Response.StatusCode = healthStatusCode;
+    return $"monitor response is : {monitorStatusCode}";
+});
+
+app.MapPost("/health/status", (int statusCode) =>
+{
+    healthStatusCode = statusCode;
+    app.Logger.LogInformation("Health endpoint status code changed to {statusCode}", statusCode);
+    return new { message = "Health status code updated", statusCode = healthStatusCode };
+});
+
+
+app.MapPost("/monitor/status", (int statusCode) =>
+{
+    monitorStatusCode = statusCode;
+    app.Logger.LogInformation("montitor endpoint status code changed to {statusCode}", statusCode);
+    return new { message = "monitor status code updated", statusCode = monitorStatusCode };
+});
 
 app.Run();
 

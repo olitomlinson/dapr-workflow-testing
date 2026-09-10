@@ -15,4 +15,6 @@ spec:
     - name: authType # Required.
       value: "none"
     - name: consumeRetryEnabled
-      value: "true"
+      value: "false"
+    - name: version
+      value: 3.5.1

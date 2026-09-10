@@ -153,6 +153,46 @@ app.MapPost("/start/fanout-workflow", async (DaprClient daprClient, string runId
     return results;
 }).Produces<List<StartWorkflowResponse>>();
 
+app.MapPost("/start/fanout-workflow-2", async (DaprClient daprClient, string runId, int? count, bool? async, int? sleep, string? abortHint) =>
+{
+    if (!count.HasValue || count.Value < 1)
+        count = 1;
+
+    if (!sleep.HasValue)
+        sleep = 0;
+
+    var results = new List<StartWorkflowResponse>();
+
+    var cts = new CancellationTokenSource();
+
+    var options = new ParallelOptions() { MaxDegreeOfParallelism = 50, CancellationToken = cts.Token };
+
+    await Parallel.ForEachAsync(Enumerable.Range(0, count.Value), options, async (index, token) =>
+    {
+        var request = new StartWorkflowRequest
+        {
+            Id = $"{index}-{runId}",
+            Sleep = sleep.Value,
+            AbortHint = abortHint
+        };
+
+        if (async.HasValue && async.Value == true)
+            await daprClient.PublishEventAsync<StartWorkflowRequest>("kafka-pubsub", "fanout-workflow-2", request, cts.Token);
+        else
+        {
+            var wrappedRequest = new CustomCloudEvent<StartWorkflowRequest>(request)
+            {
+                Id = request.Id,
+            };
+            await daprClient.InvokeMethodAsync<CustomCloudEvent<StartWorkflowRequest>, StartWorkflowResponse>("workflow-a", "fanout-workflow-2", wrappedRequest, cts.Token);
+        }
+        app.Logger.LogInformation("start Id: {0}", request.Id);
+
+        results.Add(new StartWorkflowResponse { Index = index, Id = request.Id });
+    });
+    return results;
+}).Produces<List<StartWorkflowResponse>>();
+
 
 app.MapPost("/start/schedule-job", async (DaprClient daprClient, string runId, int? count, bool? async, int? sleep, string? abortHint) =>
 {
