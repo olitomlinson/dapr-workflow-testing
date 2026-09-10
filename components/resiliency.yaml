@@ -6,7 +6,7 @@ spec:
   policies:
     retries:
       pubsubRetry:
-        duration: 40s
+        duration: 10s
         maxRetries: 5
         policy: constant
   targets:

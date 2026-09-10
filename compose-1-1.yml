@@ -52,7 +52,7 @@ services:
         "-log-level",
         "info",
         "-enable-app-health-check",
-        "true",
+        "false",
         "--app-health-check-path",
         "/health",
         "--app-health-probe-interval",
@@ -109,7 +109,7 @@ services:
   ############################
   placement:
     image: "daprio/dapr:${DAPR_PLACEMENT_VERSION}"
-    command: [ "./placement", "-port", "50005", "-log-level", "warn" ]
+    command: ["./placement", "-port", "50005", "-log-level", "warn"]
     networks:
       - network
 
@@ -133,7 +133,7 @@ services:
   # ############################
   scheduler-0:
     image: "daprio/dapr:${DAPR_SCHEDULER_VERSION}"
-    command: [ "./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler" ]
+    command: ["./scheduler", "--etcd-data-dir", "/var/run/dapr/scheduler"]
     volumes:
       - ./dapr_scheduler/0:/var/run/dapr/scheduler
     networks:
